@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model users {
+  id             Int              @id @default(autoincrement())
+  name           String           @db.VarChar(100)
+  email          String           @unique(map: "email") @db.VarChar(150)
+  password       String           @db.VarChar(255)
+  avatar_url     String?          @db.VarChar(500)
+  contact_phone       String?          @db.VarChar(40)
+  work_hours          String?          @db.VarChar(160)
+  profile_description String?          @db.VarChar(500)
+  created_at     DateTime?        @default(now()) @db.Timestamp(0)
+  updated_at     DateTime?        @default(now()) @db.Timestamp(0)
+  jobSpecialties jobSpecialties[]
+  jobUbications  jobUbications[]
+}
+
+model specialties {
+  id             Int              @id @default(autoincrement())
+  name           String           @unique(map: "specialties_name_unique") @db.VarChar(100)
+  created_at     DateTime?        @default(now()) @db.Timestamp(0)
+  updated_at     DateTime?        @default(now()) @db.Timestamp(0)
+  jobSpecialties jobSpecialties[]
+}
+
+model jobSpecialties {
+  id             Int              @id @default(autoincrement())
+  user_id        Int
+  specialty_id   Int?
+  name           String           @db.VarChar(100)
+  created_at     DateTime?        @default(now()) @db.Timestamp(0)
+  updated_at     DateTime?        @default(now()) @db.Timestamp(0)
+  user           users            @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "jobSpecialties_user_id_fkey")
+  catalog        specialties?      @relation(fields: [specialty_id], references: [id], map: "jobSpecialties_specialty_id_fkey")
+  jobUbications  jobUbications[]
+
+  @@unique([user_id, name], map: "jobSpecialties_user_name_unique")
+  @@unique([user_id, specialty_id], map: "jobSpecialties_user_specialty_unique")
+  @@index([user_id], map: "jobSpecialties_user_id_idx")
+  @@index([specialty_id], map: "jobSpecialties_specialty_id_idx")
+}
+
+model jobUbications {
+  id           Int             @id @default(autoincrement())
+  user_id      Int
+  specialty_id Int?
+  latitude     Decimal         @db.Decimal(10, 7)
+  longitude    Decimal         @db.Decimal(10, 7)
+  radius_meters Int            @default(1500)
+  label        String?         @db.VarChar(120)
+  created_at   DateTime?       @default(now()) @db.Timestamp(0)
+  updated_at   DateTime?       @default(now()) @db.Timestamp(0)
+  user         users           @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "jobUbications_user_id_fkey")
+  specialty    jobSpecialties? @relation(fields: [specialty_id], references: [id], onDelete: Cascade, map: "jobUbications_specialty_id_fkey")
+
+  @@index([user_id], map: "jobUbications_user_id_idx")
+  @@index([specialty_id], map: "jobUbications_specialty_id_idx")
+}
