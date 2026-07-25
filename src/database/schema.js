@@ -259,8 +259,7 @@ export const ensureDatabase = async () => {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       INDEX bugReports_user_id_idx (user_id),
       INDEX bugReports_status_idx (status),
-      CONSTRAINT bugReports_user_id_fkey
-        FOREIGN KEY (user_id) REFERENCES users(id)
+      FOREIGN KEY (user_id) REFERENCES users(id)
         ON DELETE SET NULL
     )
   `)
@@ -277,11 +276,9 @@ export const ensureDatabase = async () => {
       INDEX jobRatings_rater_user_id_idx (rater_user_id),
       INDEX jobRatings_rated_user_id_idx (rated_user_id),
       UNIQUE KEY jobRatings_rater_rated_unique (rater_user_id, rated_user_id),
-      CONSTRAINT jobRatings_rater_user_id_fkey
-        FOREIGN KEY (rater_user_id) REFERENCES users(id)
+      FOREIGN KEY (rater_user_id) REFERENCES users(id)
         ON DELETE CASCADE,
-      CONSTRAINT jobRatings_rated_user_id_fkey
-        FOREIGN KEY (rated_user_id) REFERENCES users(id)
+      FOREIGN KEY (rated_user_id) REFERENCES users(id)
         ON DELETE CASCADE
     )
   `)
@@ -311,11 +308,9 @@ export const ensureDatabase = async () => {
       INDEX jobSpecialties_user_id_idx (user_id),
       INDEX jobSpecialties_specialty_id_idx (specialty_id),
       UNIQUE KEY jobSpecialties_user_name_unique (user_id, name),
-      CONSTRAINT jobSpecialties_user_id_fkey
-        FOREIGN KEY (user_id) REFERENCES users(id)
+      FOREIGN KEY (user_id) REFERENCES users(id)
         ON DELETE CASCADE,
-      CONSTRAINT jobSpecialties_specialty_id_fkey
-        FOREIGN KEY (specialty_id) REFERENCES specialties(id)
+      FOREIGN KEY (specialty_id) REFERENCES specialties(id)
         ON DELETE CASCADE
     )
   `)
@@ -346,8 +341,7 @@ export const ensureDatabase = async () => {
   if (!(await foreignKeyExists('jobSpecialties', 'specialty_id', 'specialties'))) {
     await db.execute(`
       ALTER TABLE jobSpecialties
-      ADD CONSTRAINT jobSpecialties_specialty_id_fkey
-      FOREIGN KEY (specialty_id) REFERENCES specialties(id)
+      ADD FOREIGN KEY (specialty_id) REFERENCES specialties(id)
     `)
   }
 
@@ -364,11 +358,9 @@ export const ensureDatabase = async () => {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       INDEX jobUbications_user_id_idx (user_id),
       INDEX jobUbications_specialty_id_idx (specialty_id),
-      CONSTRAINT jobUbications_user_id_fkey
-        FOREIGN KEY (user_id) REFERENCES users(id)
+      FOREIGN KEY (user_id) REFERENCES users(id)
         ON DELETE CASCADE,
-      CONSTRAINT jobUbications_specialty_id_fkey
-        FOREIGN KEY (specialty_id) REFERENCES jobSpecialties(id)
+      FOREIGN KEY (specialty_id) REFERENCES jobSpecialties(id)
         ON DELETE CASCADE
     )
   `)
@@ -388,8 +380,7 @@ export const ensureDatabase = async () => {
   if (!(await foreignKeyExists('jobUbications', 'specialty_id', 'jobSpecialties'))) {
     await db.execute(`
       ALTER TABLE jobUbications
-      ADD CONSTRAINT jobUbications_specialty_id_fkey
-      FOREIGN KEY (specialty_id) REFERENCES jobSpecialties(id)
+      ADD FOREIGN KEY (specialty_id) REFERENCES jobSpecialties(id)
       ON DELETE CASCADE
     `)
   }
