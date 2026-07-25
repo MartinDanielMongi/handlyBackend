@@ -1,6 +1,6 @@
 import express from 'express'
 import cors from 'cors'
-import { port } from './config/env.js'
+import { allowedOrigins, port } from './config/env.js'
 import { db } from './database/connection.js'
 import { ensureDatabase } from './database/schema.js'
 import { authRouter } from './modules/auth/auth.routes.js'
@@ -14,7 +14,17 @@ import { specialtiesRouter } from './modules/specialties/specialties.routes.js'
 
 const app = express()
 
-app.use(cors())
+app.use(cors({
+  origin(origin, callback) {
+    // Requests without an Origin header include health checks and server-side
+    // redirects, which do not need browser CORS protection.
+    if (!origin || allowedOrigins.includes(origin.replace(/\/$/, ''))) {
+      return callback(null, true)
+    }
+
+    return callback(new Error('Origen no autorizado por CORS.'))
+  },
+}))
 app.use(express.json({ limit: '5mb' }))
 
 app.use('/api', healthRouter)

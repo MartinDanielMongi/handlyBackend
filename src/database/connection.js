@@ -1,7 +1,7 @@
 import mysql from 'mysql2/promise'
-import '../config/env.js'
+import { databaseUrl } from '../config/env.js'
 
-export const db = process.env.DATABASE_URL ? mysql.createPool(process.env.DATABASE_URL) : null
+export const db = databaseUrl ? mysql.createPool(databaseUrl) : null
 
 export const ensureDb = (res) => {
   if (db) {
