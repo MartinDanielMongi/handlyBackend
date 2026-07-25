@@ -333,7 +333,8 @@ export const ensureDatabase = async () => {
   await db.execute(`
     UPDATE jobSpecialties
     INNER JOIN specialties
-      ON specialties.name = jobSpecialties.name
+      ON specialties.name COLLATE utf8mb4_unicode_ci
+        = jobSpecialties.name COLLATE utf8mb4_unicode_ci
     SET jobSpecialties.specialty_id = specialties.id
     WHERE jobSpecialties.specialty_id IS NULL
   `)
