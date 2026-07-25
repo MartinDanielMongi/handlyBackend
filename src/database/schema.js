@@ -241,8 +241,7 @@ export const ensureDatabase = async () => {
       INDEX premiumSubscriptions_user_id_idx (user_id),
       INDEX premiumSubscriptions_status_idx (status),
       UNIQUE KEY premiumSubscriptions_provider_unique (provider, provider_subscription_id),
-      CONSTRAINT premiumSubscriptions_user_id_fkey
-        FOREIGN KEY (user_id) REFERENCES users(id)
+      FOREIGN KEY (user_id) REFERENCES users(id)
         ON DELETE CASCADE
     )
   `)
