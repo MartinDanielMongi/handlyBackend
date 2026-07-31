@@ -341,6 +341,27 @@ export const ensureDatabase = async () => {
   `)
 
   await db.execute(`
+    CREATE TABLE IF NOT EXISTS specialtyRequests (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      requested_name VARCHAR(100) NOT NULL,
+      normalized_name VARCHAR(100) NOT NULL,
+      status VARCHAR(30) NOT NULL DEFAULT 'pending',
+      matched_specialty_id INT NULL,
+      reviewed_at TIMESTAMP NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX specialtyRequests_user_id_idx (user_id),
+      INDEX specialtyRequests_status_idx (status),
+      INDEX specialtyRequests_normalized_name_idx (normalized_name),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE,
+      FOREIGN KEY (matched_specialty_id) REFERENCES specialties(id)
+        ON DELETE SET NULL
+    )
+  `)
+
+  await db.execute(`
     CREATE TABLE IF NOT EXISTS jobSpecialties (
       id INT AUTO_INCREMENT PRIMARY KEY,
       user_id INT NOT NULL,

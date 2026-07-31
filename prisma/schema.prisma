@@ -23,6 +23,7 @@ model users {
   jobUbications  jobUbications[]
   passwordResetTokens passwordResetTokens[]
   emailVerificationTokens emailVerificationTokens[]
+  specialtyRequests specialtyRequests[]
 }
 
 model emailVerificationTokens {
@@ -57,6 +58,25 @@ model specialties {
   created_at     DateTime?        @default(now()) @db.Timestamp(0)
   updated_at     DateTime?        @default(now()) @db.Timestamp(0)
   jobSpecialties jobSpecialties[]
+  specialtyRequests specialtyRequests[]
+}
+
+model specialtyRequests {
+  id                   Int          @id @default(autoincrement())
+  user_id              Int
+  requested_name       String       @db.VarChar(100)
+  normalized_name      String       @db.VarChar(100)
+  status               String       @default("pending") @db.VarChar(30)
+  matched_specialty_id Int?
+  reviewed_at          DateTime?    @db.Timestamp(0)
+  created_at           DateTime?    @default(now()) @db.Timestamp(0)
+  updated_at           DateTime?    @default(now()) @db.Timestamp(0)
+  user                 users        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  matchedSpecialty     specialties? @relation(fields: [matched_specialty_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id], map: "specialtyRequests_user_id_idx")
+  @@index([status], map: "specialtyRequests_status_idx")
+  @@index([normalized_name], map: "specialtyRequests_normalized_name_idx")
 }
 
 model jobSpecialties {
