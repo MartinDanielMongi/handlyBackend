@@ -26,6 +26,7 @@ const userSelectFields = `
   id,
   name,
   email,
+  email_verified_at,
   google_id,
   avatar_url,
   contact_phone,
@@ -59,6 +60,8 @@ const toUser = (user) => ({
   id: user.id,
   name: user.name,
   email: user.email,
+  emailVerified: Boolean(user.email_verified_at),
+  email_verified: Boolean(user.email_verified_at),
   googleId: user.google_id || null,
   google_id: user.google_id || null,
   avatarUrl: user.avatar_url || null,
@@ -133,9 +136,11 @@ const googleTokenUrl = 'https://oauth2.googleapis.com/token'
 const googleUserInfoUrl = 'https://openidconnect.googleapis.com/v1/userinfo'
 const resendEmailUrl = 'https://api.resend.com/emails'
 const passwordResetLifetimeMs = 1000 * 60 * 20
+const emailVerificationLifetimeMs = 1000 * 60 * 60 * 24
 const passwordResetRequestWindowMs = 1000 * 60 * 60
 const passwordResetRequestLimit = 5
 const passwordResetRequests = new Map()
+const emailVerificationRequests = new Map()
 
 const getPrimaryFrontendUrl = () => frontendUrl
   .split(',')
@@ -145,17 +150,25 @@ const getPrimaryFrontendUrl = () => frontendUrl
 
 const hashResetToken = (token) => createHash('sha256').update(token).digest('hex')
 
-const isPasswordResetRateLimited = (req, email) => {
+const isEmailActionRateLimited = (requestStore, req, email) => {
   const now = Date.now()
   const key = `${req.ip || 'unknown'}:${email}`
-  const recentRequests = (passwordResetRequests.get(key) || [])
+  const recentRequests = (requestStore.get(key) || [])
     .filter((timestamp) => now - timestamp < passwordResetRequestWindowMs)
 
   recentRequests.push(now)
-  passwordResetRequests.set(key, recentRequests)
+  requestStore.set(key, recentRequests)
 
   return recentRequests.length > passwordResetRequestLimit
 }
+
+const isPasswordResetRateLimited = (req, email) => (
+  isEmailActionRateLimited(passwordResetRequests, req, email)
+)
+
+const isEmailVerificationRateLimited = (req, email) => (
+  isEmailActionRateLimited(emailVerificationRequests, req, email)
+)
 
 const sendPasswordResetEmail = async (email, resetUrl) => {
   const response = await fetch(resendEmailUrl, {
@@ -187,6 +200,68 @@ const sendPasswordResetEmail = async (email, resetUrl) => {
   if (!response.ok) {
     const errorBody = await response.text()
     throw new Error(`Resend respondio ${response.status}: ${errorBody}`)
+  }
+}
+
+const sendEmailVerification = async (email, verificationUrl) => {
+  const response = await fetch(resendEmailUrl, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: resetEmailFrom,
+      to: [email],
+      subject: 'Verifica tu email en Handys',
+      text: `Confirma tu email para activar tu cuenta de Handys:\n${verificationUrl}\n\nEl enlace vence en 24 horas. Si no creaste esta cuenta, ignora este mensaje.`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#19352d">
+          <h1 style="font-size:24px">Verifica tu email</h1>
+          <p>Confirma tu dirección de email para activar tu cuenta de Handys.</p>
+          <p style="margin:28px 0">
+            <a href="${verificationUrl}" style="background:#198754;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700">
+              Verificar email
+            </a>
+          </p>
+          <p>El enlace vence en 24 horas. Si no creaste esta cuenta, ignora este mensaje.</p>
+        </div>
+      `,
+    }),
+  })
+
+  if (!response.ok) {
+    const errorBody = await response.text()
+    throw new Error(`Resend respondio ${response.status}: ${errorBody}`)
+  }
+}
+
+const createAndSendEmailVerification = async (user) => {
+  const token = randomBytes(32).toString('base64url')
+  const tokenHash = hashResetToken(token)
+  const expiresAt = new Date(Date.now() + emailVerificationLifetimeMs)
+  const verificationUrl = new URL('/verify-email', getPrimaryFrontendUrl())
+
+  verificationUrl.searchParams.set('token', token)
+
+  await db.execute(
+    'UPDATE emailVerificationTokens SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL',
+    [user.id],
+  )
+  await db.execute(
+    `INSERT INTO emailVerificationTokens (user_id, token_hash, expires_at)
+    VALUES (?, ?, ?)`,
+    [user.id, tokenHash, expiresAt],
+  )
+
+  try {
+    await sendEmailVerification(user.email, verificationUrl.toString())
+  } catch (error) {
+    await db.execute(
+      'UPDATE emailVerificationTokens SET used_at = NOW() WHERE token_hash = ?',
+      [tokenHash],
+    )
+    throw error
   }
 }
 
@@ -232,7 +307,7 @@ const verifySignedPayload = (tokenValue) => {
 
 const isGoogleAuthConfigured = () => Boolean(googleClientId && googleClientSecret && googleRedirectUri)
 
-const getFrontendCallbackUrl = () => `${frontendUrl.replace(/\/$/, '')}/auth/google/callback`
+const getFrontendCallbackUrl = () => `${getPrimaryFrontendUrl()}/auth/google/callback`
 
 const redirectToGoogleCallback = (res, query) => {
   const callbackUrl = new URL(getFrontendCallbackUrl())
@@ -312,7 +387,20 @@ const findOrCreateGoogleUser = async (profile) => {
   )
 
   if (usersByGoogleId.length) {
-    return usersByGoogleId[0]
+    if (usersByGoogleId[0].email_verified_at) {
+      return usersByGoogleId[0]
+    }
+
+    await db.execute(
+      'UPDATE users SET email_verified_at = NOW() WHERE id = ?',
+      [usersByGoogleId[0].id],
+    )
+    const [verifiedUsers] = await db.execute(
+      `SELECT ${userSelectFields} FROM users WHERE id = ? LIMIT 1`,
+      [usersByGoogleId[0].id],
+    )
+
+    return verifiedUsers[0]
   }
 
   const [usersByEmail] = await db.execute(
@@ -324,7 +412,8 @@ const findOrCreateGoogleUser = async (profile) => {
     await db.execute(
       `UPDATE users
       SET google_id = COALESCE(google_id, ?),
-        avatar_url = COALESCE(avatar_url, ?)
+        avatar_url = COALESCE(avatar_url, ?),
+        email_verified_at = COALESCE(email_verified_at, NOW())
       WHERE id = ?`,
       [googleId, avatarUrl, usersByEmail[0].id],
     )
@@ -339,8 +428,8 @@ const findOrCreateGoogleUser = async (profile) => {
 
   const passwordHash = await hashPassword(`google:${googleId}:${randomUUID()}`)
   const [result] = await db.execute(
-    `INSERT INTO users (name, email, password, google_id, avatar_url)
-    VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO users (name, email, email_verified_at, password, google_id, avatar_url)
+    VALUES (?, ?, NOW(), ?, ?, ?)`,
     [name, email, passwordHash, googleId, avatarUrl],
   )
   const [createdUsers] = await db.execute(
@@ -425,20 +514,34 @@ authRouter.post('/users', async (req, res) => {
     return
   }
 
+  if (!resendApiKey || !resetEmailFrom) {
+    return res.status(503).json({
+      message: 'La verificacion de email todavia no esta configurada.',
+    })
+  }
+
   const name = typeof req.body.name === 'string' ? req.body.name.trim() : ''
   const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : ''
   const password = typeof req.body.password === 'string' ? req.body.password : ''
 
   if (!name || !email || !password) {
-    return res.status(400).json({ message: 'Usuario, email y contraseña son obligatorios.' })
+    return res.status(400).json({ message: 'Nombre, email y contraseña son obligatorios.' })
   }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ message: 'Ingresa un email valido.' })
   }
 
+  if (name.length > 100) {
+    return res.status(400).json({ message: 'El nombre es demasiado largo.' })
+  }
+
   if (password.length < 6) {
     return res.status(400).json({ message: 'La contraseña debe tener al menos 6 caracteres.' })
+  }
+
+  if (password.length > 128) {
+    return res.status(400).json({ message: 'La contraseña es demasiado larga.' })
   }
 
   try {
@@ -451,10 +554,21 @@ authRouter.post('/users', async (req, res) => {
       `SELECT ${userSelectFields} FROM users WHERE id = ?`,
       [result.insertId],
     )
+    let emailSent = true
+
+    try {
+      await createAndSendEmailVerification(users[0])
+    } catch (emailError) {
+      emailSent = false
+      console.error('Error enviando verificacion de email:', emailError)
+    }
 
     return res.status(201).json({
-      user: toUser(users[0]),
-      token: createSessionToken(users[0]),
+      emailVerificationRequired: true,
+      emailSent,
+      message: emailSent
+        ? 'Te enviamos un enlace para verificar tu email.'
+        : 'La cuenta fue creada, pero no pudimos enviar el correo. Usa la opcion de reenviar verificacion.',
     })
   } catch (error) {
     if (error.code === 'ER_DUP_ENTRY' || error.errno === 1062) {
@@ -471,22 +585,33 @@ authRouter.post('/login', async (req, res) => {
     return
   }
 
-  const identifier = typeof req.body.identifier === 'string' ? req.body.identifier.trim().toLowerCase() : ''
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : ''
   const password = typeof req.body.password === 'string' ? req.body.password : ''
 
-  if (!identifier || !password) {
-    return res.status(400).json({ message: 'Usuario/email y contraseña son obligatorios.' })
+  if (!email || !password) {
+    return res.status(400).json({ message: 'Email y contraseña son obligatorios.' })
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ message: 'Ingresa un email valido.' })
   }
 
   try {
     const [users] = await db.execute(
-      `SELECT ${userSelectFields}, password FROM users WHERE LOWER(email) = ? OR LOWER(name) = ? LIMIT 1`,
-      [identifier, identifier],
+      `SELECT ${userSelectFields}, password FROM users WHERE LOWER(email) = ? LIMIT 1`,
+      [email],
     )
     const user = users[0]
 
     if (!user || !(await verifyPassword(password, user.password))) {
-      return res.status(401).json({ message: 'Usuario o contraseña incorrectos.' })
+      return res.status(401).json({ message: 'Email o contraseña incorrectos.' })
+    }
+
+    if (!user.email_verified_at) {
+      return res.status(403).json({
+        code: 'EMAIL_NOT_VERIFIED',
+        message: 'Verifica tu email antes de iniciar sesion.',
+      })
     }
 
     return res.json({
@@ -496,6 +621,109 @@ authRouter.post('/login', async (req, res) => {
   } catch (error) {
     console.error('Error iniciando sesion:', error)
     return res.status(500).json({ message: 'No se pudo iniciar sesion.' })
+  }
+})
+
+authRouter.post('/auth/resend-verification', async (req, res) => {
+  if (!ensureDb(res)) {
+    return
+  }
+
+  if (!resendApiKey || !resetEmailFrom) {
+    return res.status(503).json({
+      message: 'La verificacion de email todavia no esta configurada.',
+    })
+  }
+
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : ''
+  const genericMessage = 'Si la cuenta existe y falta verificarla, te enviamos un nuevo enlace.'
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ message: 'Ingresa un email valido.' })
+  }
+
+  if (isEmailVerificationRateLimited(req, email)) {
+    return res.status(429).json({ message: 'Espera unos minutos antes de volver a intentarlo.' })
+  }
+
+  try {
+    const [users] = await db.execute(
+      `SELECT id, email
+      FROM users
+      WHERE LOWER(email) = ?
+        AND email_verified_at IS NULL
+      LIMIT 1`,
+      [email],
+    )
+
+    if (users[0]) {
+      try {
+        await createAndSendEmailVerification(users[0])
+      } catch (emailError) {
+        console.error('Error reenviando verificacion de email:', emailError)
+      }
+    }
+
+    return res.json({ message: genericMessage })
+  } catch (error) {
+    console.error('Error solicitando reenvio de verificacion:', error)
+    return res.status(500).json({ message: 'No se pudo procesar la solicitud.' })
+  }
+})
+
+authRouter.post('/auth/verify-email', async (req, res) => {
+  if (!ensureDb(res)) {
+    return
+  }
+
+  const token = typeof req.body.token === 'string' ? req.body.token.trim() : ''
+
+  if (!token) {
+    return res.status(400).json({ message: 'El enlace de verificacion no es valido.' })
+  }
+
+  const connection = await db.getConnection()
+
+  try {
+    await connection.beginTransaction()
+
+    const tokenHash = hashResetToken(token)
+    const [tokens] = await connection.execute(
+      `SELECT id, user_id
+      FROM emailVerificationTokens
+      WHERE token_hash = ?
+        AND used_at IS NULL
+        AND expires_at > NOW()
+      LIMIT 1
+      FOR UPDATE`,
+      [tokenHash],
+    )
+    const verificationToken = tokens[0]
+
+    if (!verificationToken) {
+      await connection.rollback()
+      return res.status(400).json({
+        message: 'El enlace es invalido o vencio. Solicita uno nuevo.',
+      })
+    }
+
+    await connection.execute(
+      'UPDATE users SET email_verified_at = COALESCE(email_verified_at, NOW()) WHERE id = ?',
+      [verificationToken.user_id],
+    )
+    await connection.execute(
+      'UPDATE emailVerificationTokens SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL',
+      [verificationToken.user_id],
+    )
+    await connection.commit()
+
+    return res.json({ message: 'Email verificado. Ya podes iniciar sesion.' })
+  } catch (error) {
+    await connection.rollback()
+    console.error('Error verificando email:', error)
+    return res.status(500).json({ message: 'No se pudo verificar el email.' })
+  } finally {
+    connection.release()
   }
 })
 

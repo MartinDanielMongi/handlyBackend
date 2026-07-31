@@ -171,6 +171,7 @@ export const ensureDatabase = async () => {
       id INT AUTO_INCREMENT PRIMARY KEY,
       name VARCHAR(100) NOT NULL,
       email VARCHAR(150) NOT NULL,
+      email_verified_at TIMESTAMP NULL,
       password VARCHAR(255) NOT NULL,
       google_id VARCHAR(128) NULL,
       avatar_url LONGTEXT NULL,
@@ -251,6 +252,11 @@ export const ensureDatabase = async () => {
     )
   `)
 
+  if (!(await columnExists('users', 'email_verified_at'))) {
+    await db.execute('ALTER TABLE users ADD COLUMN email_verified_at TIMESTAMP NULL AFTER email')
+    await db.execute('UPDATE users SET email_verified_at = COALESCE(created_at, NOW())')
+  }
+
   await db.execute(`
     CREATE TABLE IF NOT EXISTS passwordResetTokens (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -262,6 +268,22 @@ export const ensureDatabase = async () => {
       UNIQUE KEY passwordResetTokens_hash_unique (token_hash),
       INDEX passwordResetTokens_user_id_idx (user_id),
       INDEX passwordResetTokens_expires_at_idx (expires_at),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE
+    )
+  `)
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS emailVerificationTokens (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      token_hash CHAR(64) NOT NULL,
+      expires_at TIMESTAMP NOT NULL,
+      used_at TIMESTAMP NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY emailVerificationTokens_hash_unique (token_hash),
+      INDEX emailVerificationTokens_user_id_idx (user_id),
+      INDEX emailVerificationTokens_expires_at_idx (expires_at),
       FOREIGN KEY (user_id) REFERENCES users(id)
         ON DELETE CASCADE
     )

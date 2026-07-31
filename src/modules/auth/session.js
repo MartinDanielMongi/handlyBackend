@@ -65,12 +65,16 @@ export const getValidatedAuthenticatedUserId = async (req) => {
   }
 
   const [users] = await db.execute(
-    'SELECT session_version FROM users WHERE id = ? LIMIT 1',
+    'SELECT session_version, email_verified_at FROM users WHERE id = ? LIMIT 1',
     [Number(payload.sub)],
   )
   const user = users[0]
 
-  if (!user || Number(payload.ver || 0) !== Number(user.session_version || 0)) {
+  if (
+    !user
+    || !user.email_verified_at
+    || Number(payload.ver || 0) !== Number(user.session_version || 0)
+  ) {
     return null
   }
 
