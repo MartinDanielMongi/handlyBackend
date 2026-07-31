@@ -1,8 +1,33 @@
 import { Router } from 'express'
+import {
+  bugReportNotificationEmail,
+  resendApiKey,
+  resetEmailFrom,
+} from '../../config/env.js'
 import { db, ensureDb } from '../../database/connection.js'
 import { getValidatedAuthenticatedUserId } from '../auth/session.js'
 
 export const bugReportsRouter = Router()
+const resendEmailUrl = 'https://api.resend.com/emails'
+const bugReportWindowMs = 1000 * 60 * 60
+const bugReportLimit = 5
+const bugReportRequests = new Map()
+
+const isBugReportRateLimited = (req) => {
+  const now = Date.now()
+  const key = req.ip || 'unknown'
+  const recentRequests = (bugReportRequests.get(key) || [])
+    .filter((timestamp) => now - timestamp < bugReportWindowMs)
+
+  if (recentRequests.length >= bugReportLimit) {
+    bugReportRequests.set(key, recentRequests)
+    return true
+  }
+
+  recentRequests.push(now)
+  bugReportRequests.set(key, recentRequests)
+  return false
+}
 
 const trimOptionalText = (value, maxLength) => {
   if (typeof value !== 'string') {
@@ -30,9 +55,78 @@ const normalizeEmail = (value) => {
   return email
 }
 
+const escapeHtml = (value) => String(value ?? '')
+  .replaceAll('&', '&amp;')
+  .replaceAll('<', '&lt;')
+  .replaceAll('>', '&gt;')
+  .replaceAll('"', '&quot;')
+  .replaceAll("'", '&#039;')
+
+const sendBugReportNotification = async ({
+  bugReport,
+  contactEmail,
+  description,
+  pageUrl,
+  userAgent,
+}) => {
+  if (!resendApiKey || !resetEmailFrom || !bugReportNotificationEmail) {
+    console.warn('Notificacion de bugs desactivada: faltan variables de email.')
+    return false
+  }
+
+  const contactLabel = contactEmail || 'No informado'
+  const pageLabel = pageUrl || 'No informada'
+  const userAgentLabel = userAgent || 'No informado'
+  const response = await fetch(resendEmailUrl, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: resetEmailFrom,
+      to: [bugReportNotificationEmail],
+      subject: `Nuevo reporte de bug en Handys #${bugReport.id}`,
+      text: `Nuevo reporte de bug #${bugReport.id}
+
+Descripcion:
+${description}
+
+Email de contacto: ${contactLabel}
+Pagina: ${pageLabel}
+Navegador: ${userAgentLabel}
+Fecha: ${bugReport.created_at}`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#19352d">
+          <h1 style="font-size:22px">Nuevo reporte de bug #${bugReport.id}</h1>
+          <div style="margin:20px 0;padding:16px;background:#f3f7f5;border-radius:10px;white-space:pre-wrap">${escapeHtml(description)}</div>
+          <p><strong>Email de contacto:</strong> ${escapeHtml(contactLabel)}</p>
+          <p><strong>Página:</strong> ${escapeHtml(pageLabel)}</p>
+          <p><strong>Navegador:</strong> ${escapeHtml(userAgentLabel)}</p>
+          <p><strong>Fecha:</strong> ${escapeHtml(bugReport.created_at)}</p>
+        </div>
+      `,
+    }),
+    signal: AbortSignal.timeout(8000),
+  })
+
+  if (!response.ok) {
+    const errorBody = await response.text()
+    throw new Error(`Resend respondio ${response.status}: ${errorBody}`)
+  }
+
+  return true
+}
+
 bugReportsRouter.post('/', async (req, res) => {
   if (!ensureDb(res)) {
     return
+  }
+
+  if (isBugReportRateLimited(req)) {
+    return res.status(429).json({
+      message: 'Alcanzaste el limite de reportes. Intenta nuevamente mas tarde.',
+    })
   }
 
   try {
@@ -70,6 +164,19 @@ bugReportsRouter.post('/', async (req, res) => {
       [result.insertId],
     )
     const bugReport = rows[0]
+    let notificationSent = false
+
+    try {
+      notificationSent = await sendBugReportNotification({
+        bugReport,
+        contactEmail,
+        description,
+        pageUrl,
+        userAgent,
+      })
+    } catch (notificationError) {
+      console.error('Error enviando notificacion de bug:', notificationError)
+    }
 
     return res.status(201).json({
       bugReport: {
@@ -77,6 +184,7 @@ bugReportsRouter.post('/', async (req, res) => {
         status: bugReport.status,
         createdAt: bugReport.created_at,
       },
+      notificationSent,
     })
   } catch (error) {
     if (error.statusCode === 400) {

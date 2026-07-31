@@ -14,6 +14,8 @@ import { specialtiesRouter } from './modules/specialties/specialties.routes.js'
 
 const app = express()
 
+app.set('trust proxy', 1)
+
 app.use(cors({
   origin(origin, callback) {
     // Requests without an Origin header include health checks and server-side
