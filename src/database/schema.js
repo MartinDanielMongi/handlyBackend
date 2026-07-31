@@ -177,6 +177,7 @@ export const ensureDatabase = async () => {
       contact_phone VARCHAR(40) NULL,
       work_hours VARCHAR(160) NULL,
       profile_description VARCHAR(500) NULL,
+      session_version INT NOT NULL DEFAULT 0,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       UNIQUE KEY email (email),
@@ -210,6 +211,10 @@ export const ensureDatabase = async () => {
     await db.execute('ALTER TABLE users ADD COLUMN profile_description VARCHAR(500) NULL AFTER work_hours')
   }
 
+  if (!(await columnExists('users', 'session_version'))) {
+    await db.execute('ALTER TABLE users ADD COLUMN session_version INT NOT NULL DEFAULT 0 AFTER profile_description')
+  }
+
   if (!(await columnExists('users', 'premium_status'))) {
     await db.execute("ALTER TABLE users ADD COLUMN premium_status VARCHAR(30) NOT NULL DEFAULT 'free' AFTER profile_description")
   }
@@ -241,6 +246,22 @@ export const ensureDatabase = async () => {
       INDEX premiumSubscriptions_user_id_idx (user_id),
       INDEX premiumSubscriptions_status_idx (status),
       UNIQUE KEY premiumSubscriptions_provider_unique (provider, provider_subscription_id),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE
+    )
+  `)
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS passwordResetTokens (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      token_hash CHAR(64) NOT NULL,
+      expires_at TIMESTAMP NOT NULL,
+      used_at TIMESTAMP NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY passwordResetTokens_hash_unique (token_hash),
+      INDEX passwordResetTokens_user_id_idx (user_id),
+      INDEX passwordResetTokens_expires_at_idx (expires_at),
       FOREIGN KEY (user_id) REFERENCES users(id)
         ON DELETE CASCADE
     )

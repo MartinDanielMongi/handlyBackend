@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { db, ensureDb } from '../../database/connection.js'
 import { requireAuth } from '../../middleware/requireAuth.js'
-import { getAuthenticatedUserId } from '../auth/session.js'
+import { getValidatedAuthenticatedUserId } from '../auth/session.js'
 import { getUserLimits } from '../premium/premiumLimits.js'
 import { toJobUbication } from './jobUbications.mapper.js'
 
@@ -132,7 +132,7 @@ jobUbicationsRouter.get('/search', async (req, res) => {
   const specialtyId = Number(req.query.specialtyId)
   const latitude = Number(req.query.latitude)
   const longitude = Number(req.query.longitude)
-  const viewerUserId = getAuthenticatedUserId(req)
+  const viewerUserId = await getValidatedAuthenticatedUserId(req)
   const canViewPrivateProfile = viewerUserId ? 1 : 0
   const privateProfileSelectSql = canViewPrivateProfile
     ? `

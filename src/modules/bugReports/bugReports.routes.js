@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { db, ensureDb } from '../../database/connection.js'
-import { getAuthenticatedUserId } from '../auth/session.js'
+import { getValidatedAuthenticatedUserId } from '../auth/session.js'
 
 export const bugReportsRouter = Router()
 
@@ -36,7 +36,7 @@ bugReportsRouter.post('/', async (req, res) => {
   }
 
   try {
-    const authenticatedUserId = getAuthenticatedUserId(req)
+    const authenticatedUserId = await getValidatedAuthenticatedUserId(req)
     const description = trimOptionalText(req.body.description, 1200)
     const contactEmail = normalizeEmail(req.body.contactEmail)
     const pageUrl = trimOptionalText(req.body.pageUrl, 500)

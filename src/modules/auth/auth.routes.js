@@ -1,10 +1,18 @@
 import { Router } from 'express'
-import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  randomUUID,
+  timingSafeEqual,
+} from 'node:crypto'
 import {
   frontendUrl,
   googleClientId,
   googleClientSecret,
   googleRedirectUri,
+  resendApiKey,
+  resetEmailFrom,
   sessionSecret,
 } from '../../config/env.js'
 import { db, ensureDb } from '../../database/connection.js'
@@ -23,6 +31,7 @@ const userSelectFields = `
   contact_phone,
   work_hours,
   profile_description,
+  session_version,
   premium_status,
   premium_plan,
   premium_started_at,
@@ -122,6 +131,64 @@ const normalizeAvatarValue = (value) => {
 const googleAuthUrl = 'https://accounts.google.com/o/oauth2/v2/auth'
 const googleTokenUrl = 'https://oauth2.googleapis.com/token'
 const googleUserInfoUrl = 'https://openidconnect.googleapis.com/v1/userinfo'
+const resendEmailUrl = 'https://api.resend.com/emails'
+const passwordResetLifetimeMs = 1000 * 60 * 20
+const passwordResetRequestWindowMs = 1000 * 60 * 60
+const passwordResetRequestLimit = 5
+const passwordResetRequests = new Map()
+
+const getPrimaryFrontendUrl = () => frontendUrl
+  .split(',')
+  .map((url) => url.trim())
+  .find(Boolean)
+  ?.replace(/\/$/, '') || 'http://localhost:3000'
+
+const hashResetToken = (token) => createHash('sha256').update(token).digest('hex')
+
+const isPasswordResetRateLimited = (req, email) => {
+  const now = Date.now()
+  const key = `${req.ip || 'unknown'}:${email}`
+  const recentRequests = (passwordResetRequests.get(key) || [])
+    .filter((timestamp) => now - timestamp < passwordResetRequestWindowMs)
+
+  recentRequests.push(now)
+  passwordResetRequests.set(key, recentRequests)
+
+  return recentRequests.length > passwordResetRequestLimit
+}
+
+const sendPasswordResetEmail = async (email, resetUrl) => {
+  const response = await fetch(resendEmailUrl, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: resetEmailFrom,
+      to: [email],
+      subject: 'Recupera tu contraseña de Handys',
+      text: `Recibimos un pedido para cambiar tu contraseña de Handys.\n\nCrea una nueva contraseña desde este enlace:\n${resetUrl}\n\nEl enlace vence en 20 minutos. Si no fuiste vos, ignora este mensaje.`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#19352d">
+          <h1 style="font-size:24px">Recupera tu contraseña</h1>
+          <p>Recibimos un pedido para cambiar tu contraseña de Handys.</p>
+          <p style="margin:28px 0">
+            <a href="${resetUrl}" style="background:#198754;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700">
+              Crear nueva contraseña
+            </a>
+          </p>
+          <p>El enlace vence en 20 minutos. Si no fuiste vos, ignora este mensaje.</p>
+        </div>
+      `,
+    }),
+  })
+
+  if (!response.ok) {
+    const errorBody = await response.text()
+    throw new Error(`Resend respondio ${response.status}: ${errorBody}`)
+  }
+}
 
 const signPayload = (payload) => {
   const body = Buffer.from(JSON.stringify(payload)).toString('base64url')
@@ -429,6 +496,138 @@ authRouter.post('/login', async (req, res) => {
   } catch (error) {
     console.error('Error iniciando sesion:', error)
     return res.status(500).json({ message: 'No se pudo iniciar sesion.' })
+  }
+})
+
+authRouter.post('/auth/forgot-password', async (req, res) => {
+  if (!ensureDb(res)) {
+    return
+  }
+
+  if (!resendApiKey || !resetEmailFrom) {
+    return res.status(503).json({
+      message: 'La recuperacion de contraseña todavia no esta configurada.',
+    })
+  }
+
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : ''
+  const genericMessage = 'Si existe una cuenta con ese email, te enviamos un enlace para recuperar tu contraseña.'
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ message: 'Ingresa un email valido.' })
+  }
+
+  if (isPasswordResetRateLimited(req, email)) {
+    return res.status(429).json({ message: 'Espera unos minutos antes de volver a intentarlo.' })
+  }
+
+  try {
+    const [users] = await db.execute(
+      'SELECT id, email FROM users WHERE LOWER(email) = ? LIMIT 1',
+      [email],
+    )
+    const user = users[0]
+
+    if (user) {
+      const token = randomBytes(32).toString('base64url')
+      const tokenHash = hashResetToken(token)
+      const expiresAt = new Date(Date.now() + passwordResetLifetimeMs)
+      const resetUrl = new URL('/reset-password', getPrimaryFrontendUrl())
+
+      resetUrl.searchParams.set('token', token)
+
+      await db.execute(
+        'UPDATE passwordResetTokens SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL',
+        [user.id],
+      )
+      await db.execute(
+        `INSERT INTO passwordResetTokens (user_id, token_hash, expires_at)
+        VALUES (?, ?, ?)`,
+        [user.id, tokenHash, expiresAt],
+      )
+
+      try {
+        await sendPasswordResetEmail(user.email, resetUrl.toString())
+      } catch (emailError) {
+        await db.execute(
+          'UPDATE passwordResetTokens SET used_at = NOW() WHERE token_hash = ?',
+          [tokenHash],
+        )
+        console.error('Error enviando recuperacion de contraseña:', emailError)
+      }
+    }
+
+    return res.json({ message: genericMessage })
+  } catch (error) {
+    console.error('Error solicitando recuperacion de contraseña:', error)
+    return res.status(500).json({ message: 'No se pudo procesar la solicitud.' })
+  }
+})
+
+authRouter.post('/auth/reset-password', async (req, res) => {
+  if (!ensureDb(res)) {
+    return
+  }
+
+  const token = typeof req.body.token === 'string' ? req.body.token.trim() : ''
+  const password = typeof req.body.password === 'string' ? req.body.password : ''
+
+  if (!token || !password) {
+    return res.status(400).json({ message: 'El enlace y la nueva contraseña son obligatorios.' })
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ message: 'La contraseña debe tener al menos 6 caracteres.' })
+  }
+
+  if (password.length > 128) {
+    return res.status(400).json({ message: 'La contraseña es demasiado larga.' })
+  }
+
+  const connection = await db.getConnection()
+
+  try {
+    await connection.beginTransaction()
+
+    const tokenHash = hashResetToken(token)
+    const [tokens] = await connection.execute(
+      `SELECT id, user_id
+      FROM passwordResetTokens
+      WHERE token_hash = ?
+        AND used_at IS NULL
+        AND expires_at > NOW()
+      LIMIT 1
+      FOR UPDATE`,
+      [tokenHash],
+    )
+    const resetToken = tokens[0]
+
+    if (!resetToken) {
+      await connection.rollback()
+      return res.status(400).json({
+        message: 'El enlace es invalido o vencio. Solicita uno nuevo.',
+      })
+    }
+
+    const passwordHash = await hashPassword(password)
+
+    await connection.execute(
+      'UPDATE users SET password = ?, session_version = session_version + 1 WHERE id = ?',
+      [passwordHash, resetToken.user_id],
+    )
+    await connection.execute(
+      'UPDATE passwordResetTokens SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL',
+      [resetToken.user_id],
+    )
+    await connection.commit()
+
+    return res.json({ message: 'Contraseña actualizada. Ya podes iniciar sesion.' })
+  } catch (error) {
+    await connection.rollback()
+    console.error('Error restableciendo contraseña:', error)
+    return res.status(500).json({ message: 'No se pudo actualizar la contraseña.' })
+  } finally {
+    connection.release()
   }
 })
 

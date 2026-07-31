@@ -16,5 +16,7 @@ export const allowedOrigins = frontendUrl
 export const googleClientId = process.env.GOOGLE_CLIENT_ID || ''
 export const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || ''
 export const googleRedirectUri = process.env.GOOGLE_REDIRECT_URI || `http://localhost:${port}/api/auth/google/callback`
+export const resendApiKey = process.env.RESEND_API_KEY || ''
+export const resetEmailFrom = process.env.RESET_EMAIL_FROM || ''
 export const premiumDemoEnabled = process.env.PREMIUM_DEMO_ENABLED === 'true'
   || (process.env.PREMIUM_DEMO_ENABLED !== 'false' && process.env.NODE_ENV !== 'production')
