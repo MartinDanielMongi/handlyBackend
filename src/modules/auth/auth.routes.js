@@ -139,6 +139,7 @@ const passwordResetLifetimeMs = 1000 * 60 * 20
 const emailVerificationLifetimeMs = 1000 * 60 * 60 * 24
 const passwordResetRequestWindowMs = 1000 * 60 * 60
 const passwordResetRequestLimit = 5
+const emailVerificationCooldownMs = 1000 * 60
 const passwordResetRequests = new Map()
 const emailVerificationRequests = new Map()
 
@@ -150,16 +151,24 @@ const getPrimaryFrontendUrl = () => frontendUrl
 
 const hashResetToken = (token) => createHash('sha256').update(token).digest('hex')
 
-const isEmailActionRateLimited = (requestStore, req, email) => {
+const isEmailActionRateLimited = (requestStore, req, email, minimumIntervalMs = 0) => {
   const now = Date.now()
   const key = `${req.ip || 'unknown'}:${email}`
   const recentRequests = (requestStore.get(key) || [])
     .filter((timestamp) => now - timestamp < passwordResetRequestWindowMs)
+  const lastRequestAt = recentRequests.at(-1) || 0
 
-  recentRequests.push(now)
   requestStore.set(key, recentRequests)
 
-  return recentRequests.length > passwordResetRequestLimit
+  if (
+    recentRequests.length >= passwordResetRequestLimit
+    || (lastRequestAt && now - lastRequestAt < minimumIntervalMs)
+  ) {
+    return true
+  }
+
+  recentRequests.push(now)
+  return false
 }
 
 const isPasswordResetRateLimited = (req, email) => (
@@ -167,7 +176,12 @@ const isPasswordResetRateLimited = (req, email) => (
 )
 
 const isEmailVerificationRateLimited = (req, email) => (
-  isEmailActionRateLimited(emailVerificationRequests, req, email)
+  isEmailActionRateLimited(
+    emailVerificationRequests,
+    req,
+    email,
+    emailVerificationCooldownMs,
+  )
 )
 
 const sendPasswordResetEmail = async (email, resetUrl) => {
@@ -643,7 +657,9 @@ authRouter.post('/auth/resend-verification', async (req, res) => {
   }
 
   if (isEmailVerificationRateLimited(req, email)) {
-    return res.status(429).json({ message: 'Espera unos minutos antes de volver a intentarlo.' })
+    return res.status(429).json({
+      message: 'Espera al menos un minuto antes de reenviar el email.',
+    })
   }
 
   try {
