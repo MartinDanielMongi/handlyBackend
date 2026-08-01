@@ -48,6 +48,24 @@ jobSpecialtiesRouter.post('/', async (req, res) => {
   }
 
   try {
+    const [specialtiesWithoutPoints] = await db.execute(
+      `SELECT jobSpecialties.id, jobSpecialties.name
+      FROM jobSpecialties
+      LEFT JOIN jobUbications
+        ON jobUbications.specialty_id = jobSpecialties.id
+      WHERE jobSpecialties.user_id = ?
+      GROUP BY jobSpecialties.id, jobSpecialties.name
+      HAVING COUNT(jobUbications.id) = 0
+      LIMIT 1`,
+      [req.userId],
+    )
+
+    if (specialtiesWithoutPoints.length) {
+      return res.status(409).json({
+        message: `Primero marcá una zona de trabajo para ${specialtiesWithoutPoints[0].name}.`,
+      })
+    }
+
     const limits = await getUserLimits(req.userId)
 
     if (limits.specialtyLimit !== null) {

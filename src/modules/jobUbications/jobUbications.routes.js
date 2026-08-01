@@ -405,6 +405,34 @@ jobUbicationsRouter.delete('/:id', async (req, res) => {
   }
 
   try {
+    const [locations] = await db.execute(
+      `SELECT id, specialty_id
+      FROM jobUbications
+      WHERE id = ? AND user_id = ?
+      LIMIT 1`,
+      [id, req.userId],
+    )
+    const location = locations[0]
+
+    if (!location) {
+      return res.status(404).json({ message: 'La ubicación no existe.' })
+    }
+
+    if (location.specialty_id) {
+      const [countRows] = await db.execute(
+        `SELECT COUNT(*) AS total
+        FROM jobUbications
+        WHERE user_id = ? AND specialty_id = ?`,
+        [req.userId, location.specialty_id],
+      )
+
+      if (Number(countRows[0]?.total || 0) <= 1) {
+        return res.status(409).json({
+          message: 'Cada especialidad debe conservar al menos un punto. Podés moverlo o eliminar la especialidad completa.',
+        })
+      }
+    }
+
     await db.execute('DELETE FROM jobUbications WHERE id = ? AND user_id = ?', [id, req.userId])
 
     return res.status(204).send()
