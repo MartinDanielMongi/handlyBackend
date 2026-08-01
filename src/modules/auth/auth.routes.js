@@ -117,7 +117,7 @@ const normalizeAvatarValue = (value) => {
   }
 
   if (trimmed.length > maxAvatarTextLength) {
-    throw badRequest('La imagen es demasiado pesada. Usa una imagen de hasta 2 MB.')
+    throw badRequest('La imagen es demasiado pesada. Usá una imagen de hasta 2 MB.')
   }
 
   if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith('/')) {
@@ -128,7 +128,7 @@ const normalizeAvatarValue = (value) => {
     return trimmed
   }
 
-  throw badRequest('La foto debe ser una imagen valida.')
+  throw badRequest('La foto debe ser una imagen válida.')
 }
 
 const googleAuthUrl = 'https://accounts.google.com/o/oauth2/v2/auth'
@@ -194,11 +194,11 @@ const sendPasswordResetEmail = async (email, resetUrl) => {
     body: JSON.stringify({
       from: resetEmailFrom,
       to: [email],
-      subject: 'Recupera tu contraseña de Handys',
+      subject: 'Recuperá tu contraseña de Handys',
       text: `Recibimos un pedido para cambiar tu contraseña de Handys.\n\nCrea una nueva contraseña desde este enlace:\n${resetUrl}\n\nEl enlace vence en 20 minutos. Si no fuiste vos, ignora este mensaje.`,
       html: `
         <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#19352d">
-          <h1 style="font-size:24px">Recupera tu contraseña</h1>
+          <h1 style="font-size:24px">Recuperá tu contraseña</h1>
           <p>Recibimos un pedido para cambiar tu contraseña de Handys.</p>
           <p style="margin:28px 0">
             <a href="${resetUrl}" style="background:#198754;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700">
@@ -227,18 +227,18 @@ const sendEmailVerification = async (email, verificationUrl) => {
     body: JSON.stringify({
       from: resetEmailFrom,
       to: [email],
-      subject: 'Verifica tu email en Handys',
-      text: `Confirma tu email para activar tu cuenta de Handys:\n${verificationUrl}\n\nEl enlace vence en 24 horas. Si no creaste esta cuenta, ignora este mensaje.`,
+      subject: 'Verificá tu email en Handys',
+      text: `Confirmá tu email para activar tu cuenta de Handys:\n${verificationUrl}\n\nEl enlace vence en 24 horas. Si no creaste esta cuenta, ignorá este mensaje.`,
       html: `
         <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#19352d">
-          <h1 style="font-size:24px">Verifica tu email</h1>
-          <p>Confirma tu dirección de email para activar tu cuenta de Handys.</p>
+          <h1 style="font-size:24px">Verificá tu email</h1>
+          <p>Confirmá tu dirección de email para activar tu cuenta de Handys.</p>
           <p style="margin:28px 0">
             <a href="${verificationUrl}" style="background:#198754;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700">
               Verificar email
             </a>
           </p>
-          <p>El enlace vence en 24 horas. Si no creaste esta cuenta, ignora este mensaje.</p>
+          <p>El enlace vence en 24 horas. Si no creaste esta cuenta, ignorá este mensaje.</p>
         </div>
       `,
     }),
@@ -457,7 +457,7 @@ const findOrCreateGoogleUser = async (profile) => {
 authRouter.get('/auth/google', (req, res) => {
   if (!isGoogleAuthConfigured()) {
     return redirectToGoogleCallback(res, {
-      error: 'Google todavia no esta configurado en el servidor.',
+      error: 'Google todavía no está configurado en el servidor.',
     })
   }
 
@@ -484,7 +484,7 @@ authRouter.get('/auth/google/callback', async (req, res) => {
 
   if (!isGoogleAuthConfigured()) {
     return redirectToGoogleCallback(res, {
-      error: 'Google todavia no esta configurado en el servidor.',
+      error: 'Google todavía no está configurado en el servidor.',
     })
   }
 
@@ -494,13 +494,13 @@ authRouter.get('/auth/google/callback', async (req, res) => {
 
   if (googleError) {
     return redirectToGoogleCallback(res, {
-      error: 'No se pudo iniciar sesion con Google.',
+      error: 'No se pudo iniciar sesión con Google.',
     })
   }
 
   if (!code || !verifySignedPayload(state)) {
     return redirectToGoogleCallback(res, {
-      error: 'La sesion de Google expiro. Intentalo de nuevo.',
+      error: 'La sesión de Google expiró. Intentá de nuevo.',
     })
   }
 
@@ -516,9 +516,9 @@ authRouter.get('/auth/google/callback', async (req, res) => {
       }),
     })
   } catch (error) {
-    console.error('Error iniciando sesion con Google:', error)
+    console.error('Error iniciando sesión con Google:', error)
     return redirectToGoogleCallback(res, {
-      error: error.message || 'No se pudo iniciar sesion con Google.',
+      error: error.message || 'No se pudo iniciar sesión con Google.',
     })
   }
 })
@@ -530,7 +530,7 @@ authRouter.post('/users', async (req, res) => {
 
   if (!resendApiKey || !resetEmailFrom) {
     return res.status(503).json({
-      message: 'La verificacion de email todavia no esta configurada.',
+      message: 'La verificación de email todavía no está configurada.',
     })
   }
 
@@ -543,7 +543,7 @@ authRouter.post('/users', async (req, res) => {
   }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return res.status(400).json({ message: 'Ingresa un email valido.' })
+    return res.status(400).json({ message: 'Ingresá un email válido.' })
   }
 
   if (name.length > 100) {
@@ -574,7 +574,7 @@ authRouter.post('/users', async (req, res) => {
       await createAndSendEmailVerification(users[0])
     } catch (emailError) {
       emailSent = false
-      console.error('Error enviando verificacion de email:', emailError)
+      console.error('Error enviando verificación de email:', emailError)
     }
 
     return res.status(201).json({
@@ -582,7 +582,7 @@ authRouter.post('/users', async (req, res) => {
       emailSent,
       message: emailSent
         ? 'Te enviamos un enlace para verificar tu email.'
-        : 'La cuenta fue creada, pero no pudimos enviar el correo. Usa la opcion de reenviar verificacion.',
+        : 'La cuenta fue creada, pero no pudimos enviar el correo. Usá la opción de reenviar verificación.',
     })
   } catch (error) {
     if (error.code === 'ER_DUP_ENTRY' || error.errno === 1062) {
@@ -607,7 +607,7 @@ authRouter.post('/login', async (req, res) => {
   }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return res.status(400).json({ message: 'Ingresa un email valido.' })
+    return res.status(400).json({ message: 'Ingresá un email válido.' })
   }
 
   try {
@@ -624,7 +624,7 @@ authRouter.post('/login', async (req, res) => {
     if (!user.email_verified_at) {
       return res.status(403).json({
         code: 'EMAIL_NOT_VERIFIED',
-        message: 'Verifica tu email antes de iniciar sesion.',
+        message: 'Verificá tu email antes de iniciar sesión.',
       })
     }
 
@@ -633,8 +633,8 @@ authRouter.post('/login', async (req, res) => {
       token: createSessionToken(user),
     })
   } catch (error) {
-    console.error('Error iniciando sesion:', error)
-    return res.status(500).json({ message: 'No se pudo iniciar sesion.' })
+    console.error('Error iniciando sesión:', error)
+    return res.status(500).json({ message: 'No se pudo iniciar sesión.' })
   }
 })
 
@@ -645,7 +645,7 @@ authRouter.post('/auth/resend-verification', async (req, res) => {
 
   if (!resendApiKey || !resetEmailFrom) {
     return res.status(503).json({
-      message: 'La verificacion de email todavia no esta configurada.',
+      message: 'La verificación de email todavía no está configurada.',
     })
   }
 
@@ -653,12 +653,12 @@ authRouter.post('/auth/resend-verification', async (req, res) => {
   const genericMessage = 'Si la cuenta existe y falta verificarla, te enviamos un nuevo enlace.'
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return res.status(400).json({ message: 'Ingresa un email valido.' })
+    return res.status(400).json({ message: 'Ingresá un email válido.' })
   }
 
   if (isEmailVerificationRateLimited(req, email)) {
     return res.status(429).json({
-      message: 'Espera al menos un minuto antes de reenviar el email.',
+      message: 'Esperá al menos un minuto antes de reenviar el email.',
     })
   }
 
@@ -676,13 +676,13 @@ authRouter.post('/auth/resend-verification', async (req, res) => {
       try {
         await createAndSendEmailVerification(users[0])
       } catch (emailError) {
-        console.error('Error reenviando verificacion de email:', emailError)
+        console.error('Error reenviando verificación de email:', emailError)
       }
     }
 
     return res.json({ message: genericMessage })
   } catch (error) {
-    console.error('Error solicitando reenvio de verificacion:', error)
+    console.error('Error solicitando reenvío de verificación:', error)
     return res.status(500).json({ message: 'No se pudo procesar la solicitud.' })
   }
 })
@@ -695,7 +695,7 @@ authRouter.post('/auth/verify-email', async (req, res) => {
   const token = typeof req.body.token === 'string' ? req.body.token.trim() : ''
 
   if (!token) {
-    return res.status(400).json({ message: 'El enlace de verificacion no es valido.' })
+    return res.status(400).json({ message: 'El enlace de verificación no es válido.' })
   }
 
   const connection = await db.getConnection()
@@ -719,7 +719,7 @@ authRouter.post('/auth/verify-email', async (req, res) => {
     if (!verificationToken) {
       await connection.rollback()
       return res.status(400).json({
-        message: 'El enlace es invalido o vencio. Solicita uno nuevo.',
+        message: 'El enlace es inválido o venció. Solicitá uno nuevo.',
       })
     }
 
@@ -733,7 +733,7 @@ authRouter.post('/auth/verify-email', async (req, res) => {
     )
     await connection.commit()
 
-    return res.json({ message: 'Email verificado. Ya podes iniciar sesion.' })
+    return res.json({ message: 'Email verificado. Ya podés iniciar sesión.' })
   } catch (error) {
     await connection.rollback()
     console.error('Error verificando email:', error)
@@ -750,7 +750,7 @@ authRouter.post('/auth/forgot-password', async (req, res) => {
 
   if (!resendApiKey || !resetEmailFrom) {
     return res.status(503).json({
-      message: 'La recuperacion de contraseña todavia no esta configurada.',
+      message: 'La recuperación de contraseña todavía no está configurada.',
     })
   }
 
@@ -758,11 +758,11 @@ authRouter.post('/auth/forgot-password', async (req, res) => {
   const genericMessage = 'Si existe una cuenta con ese email, te enviamos un enlace para recuperar tu contraseña.'
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return res.status(400).json({ message: 'Ingresa un email valido.' })
+    return res.status(400).json({ message: 'Ingresá un email válido.' })
   }
 
   if (isPasswordResetRateLimited(req, email)) {
-    return res.status(429).json({ message: 'Espera unos minutos antes de volver a intentarlo.' })
+    return res.status(429).json({ message: 'Esperá unos minutos antes de volver a intentarlo.' })
   }
 
   try {
@@ -797,13 +797,13 @@ authRouter.post('/auth/forgot-password', async (req, res) => {
           'UPDATE passwordResetTokens SET used_at = NOW() WHERE token_hash = ?',
           [tokenHash],
         )
-        console.error('Error enviando recuperacion de contraseña:', emailError)
+        console.error('Error enviando recuperación de contraseña:', emailError)
       }
     }
 
     return res.json({ message: genericMessage })
   } catch (error) {
-    console.error('Error solicitando recuperacion de contraseña:', error)
+    console.error('Error solicitando recuperación de contraseña:', error)
     return res.status(500).json({ message: 'No se pudo procesar la solicitud.' })
   }
 })
@@ -849,7 +849,7 @@ authRouter.post('/auth/reset-password', async (req, res) => {
     if (!resetToken) {
       await connection.rollback()
       return res.status(400).json({
-        message: 'El enlace es invalido o vencio. Solicita uno nuevo.',
+        message: 'El enlace es inválido o venció. Solicitá uno nuevo.',
       })
     }
 
@@ -865,7 +865,7 @@ authRouter.post('/auth/reset-password', async (req, res) => {
     )
     await connection.commit()
 
-    return res.json({ message: 'Contraseña actualizada. Ya podes iniciar sesion.' })
+    return res.json({ message: 'Contraseña actualizada. Ya podés iniciar sesión.' })
   } catch (error) {
     await connection.rollback()
     console.error('Error restableciendo contraseña:', error)

@@ -151,19 +151,19 @@ ratingsRouter.post('/', async (req, res) => {
   const comment = typeof req.body.comment === 'string' ? req.body.comment.trim() : ''
 
   if (!Number.isInteger(ratedUserId)) {
-    return res.status(400).json({ message: 'Prestador invalido.' })
+    return res.status(400).json({ message: 'Prestador inválido.' })
   }
 
   if (ratedUserId === req.userId) {
-    return res.status(400).json({ message: 'No podes puntuar tu propio perfil.' })
+    return res.status(400).json({ message: 'No podés puntuar tu propio perfil.' })
   }
 
   if (!Number.isInteger(score) || score < minScore || score > maxScore) {
-    return res.status(400).json({ message: 'La puntuacion tiene que ser un numero del 1 al 10.' })
+    return res.status(400).json({ message: 'La puntuación tiene que ser un número del 1 al 10.' })
   }
 
   if (comment.length < minCommentLength) {
-    return res.status(400).json({ message: 'Agrega un comentario de al menos 5 caracteres.' })
+    return res.status(400).json({ message: 'Agregá un comentario de al menos 5 caracteres.' })
   }
 
   if (comment.length > maxCommentLength) {
@@ -178,7 +178,7 @@ ratingsRouter.post('/', async (req, res) => {
     }
 
     if (!ratingStatus.isEligible) {
-      return res.status(403).json({ message: 'Tu cuenta todavia no puede puntuar.' })
+      return res.status(403).json({ message: 'Tu cuenta todavía no puede puntuar.' })
     }
 
     const [ratedUsers] = await db.execute(
@@ -226,7 +226,7 @@ ratingsRouter.post('/', async (req, res) => {
       ratingStatus: updatedStatus,
     })
   } catch (error) {
-    console.error('Error guardando puntuacion:', error)
-    return res.status(500).json({ message: 'No se pudo guardar la puntuacion.' })
+    console.error('Error guardando puntuación:', error)
+    return res.status(500).json({ message: 'No se pudo guardar la puntuación.' })
   }
 })

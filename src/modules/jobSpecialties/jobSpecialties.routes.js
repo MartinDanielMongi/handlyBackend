@@ -44,7 +44,7 @@ jobSpecialtiesRouter.post('/', async (req, res) => {
   const specialtyId = Number(req.body.specialtyId)
 
   if (!Number.isInteger(specialtyId)) {
-    return res.status(400).json({ message: 'Elegi una especialidad del listado.' })
+    return res.status(400).json({ message: 'Elegí una especialidad del listado.' })
   }
 
   try {
@@ -59,7 +59,7 @@ jobSpecialtiesRouter.post('/', async (req, res) => {
 
       if (specialtyCount >= limits.specialtyLimit) {
         return res.status(403).json({
-          message: `Las cuentas gratis pueden tener hasta ${limits.specialtyLimit} especialidades. Activa Premium para agregar mas.`,
+          message: `Las cuentas gratis pueden tener hasta ${limits.specialtyLimit} especialidades. Activá Premium para agregar más.`,
         })
       }
     }
@@ -95,7 +95,7 @@ jobSpecialtiesRouter.post('/', async (req, res) => {
     return res.status(201).json({ jobSpecialty: toJobSpecialty(rows[0]) })
   } catch (error) {
     if (error.code === 'ER_DUP_ENTRY' || error.errno === 1062) {
-      return res.status(409).json({ message: 'Ya tenes esa especialidad cargada.' })
+      return res.status(409).json({ message: 'Ya tenés esa especialidad cargada.' })
     }
 
     console.error('Error creando especialidad:', error)
@@ -111,7 +111,7 @@ jobSpecialtiesRouter.delete('/:id', async (req, res) => {
   const id = Number(req.params.id)
 
   if (!Number.isInteger(id)) {
-    return res.status(400).json({ message: 'Especialidad invalida.' })
+    return res.status(400).json({ message: 'Especialidad inválida.' })
   }
 
   try {

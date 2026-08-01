@@ -46,7 +46,7 @@ const normalizeEmail = (value) => {
   }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    const error = new Error('Ingresa un email valido o deja el campo vacio.')
+    const error = new Error('Ingresá un email válido o dejá el campo vacío.')
 
     error.statusCode = 400
     throw error
@@ -70,7 +70,7 @@ const sendBugReportNotification = async ({
   userAgent,
 }) => {
   if (!resendApiKey || !resetEmailFrom || !bugReportNotificationEmail) {
-    console.warn('Notificacion de bugs desactivada: faltan variables de email.')
+    console.warn('Notificación de bugs desactivada: faltan variables de email.')
     return false
   }
 
@@ -89,11 +89,11 @@ const sendBugReportNotification = async ({
       subject: `Nuevo reporte de bug en Handys #${bugReport.id}`,
       text: `Nuevo reporte de bug #${bugReport.id}
 
-Descripcion:
+Descripción:
 ${description}
 
 Email de contacto: ${contactLabel}
-Pagina: ${pageLabel}
+Página: ${pageLabel}
 Navegador: ${userAgentLabel}
 Fecha: ${bugReport.created_at}`,
       html: `
@@ -125,7 +125,7 @@ bugReportsRouter.post('/', async (req, res) => {
 
   if (isBugReportRateLimited(req)) {
     return res.status(429).json({
-      message: 'Alcanzaste el limite de reportes. Intenta nuevamente mas tarde.',
+      message: 'Alcanzaste el límite de reportes. Intentá nuevamente más tarde.',
     })
   }
 
@@ -137,7 +137,7 @@ bugReportsRouter.post('/', async (req, res) => {
     const userAgent = trimOptionalText(req.headers['user-agent'], 500)
 
     if (!description || description.length < 10) {
-      return res.status(400).json({ message: 'Contame un poco mas sobre el problema.' })
+      return res.status(400).json({ message: 'Contame un poco más sobre el problema.' })
     }
 
     let userId = null
@@ -175,7 +175,7 @@ bugReportsRouter.post('/', async (req, res) => {
         userAgent,
       })
     } catch (notificationError) {
-      console.error('Error enviando notificacion de bug:', notificationError)
+      console.error('Error enviando notificación de bug:', notificationError)
     }
 
     return res.status(201).json({

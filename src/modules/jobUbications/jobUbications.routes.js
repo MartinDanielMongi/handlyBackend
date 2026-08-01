@@ -155,15 +155,15 @@ jobUbicationsRouter.get('/search', async (req, res) => {
     `
 
   if (!Number.isInteger(specialtyId)) {
-    return res.status(400).json({ message: 'Elegi una especialidad para buscar.' })
+    return res.status(400).json({ message: 'Elegí una especialidad para buscar.' })
   }
 
   if (!isValidLatitude(latitude)) {
-    return res.status(400).json({ message: 'Latitud invalida.' })
+    return res.status(400).json({ message: 'Latitud inválida.' })
   }
 
   if (!isValidLongitude(longitude)) {
-    return res.status(400).json({ message: 'Longitud invalida.' })
+    return res.status(400).json({ message: 'Longitud inválida.' })
   }
 
   try {
@@ -265,19 +265,19 @@ jobUbicationsRouter.post('/', async (req, res) => {
   const label = typeof req.body.label === 'string' ? req.body.label.trim().slice(0, 120) : null
 
   if (!isValidLatitude(latitude)) {
-    return res.status(400).json({ message: 'Latitud invalida.' })
+    return res.status(400).json({ message: 'Latitud inválida.' })
   }
 
   if (!isValidLongitude(longitude)) {
-    return res.status(400).json({ message: 'Longitud invalida.' })
+    return res.status(400).json({ message: 'Longitud inválida.' })
   }
 
   if (!Number.isInteger(specialtyId)) {
-    return res.status(400).json({ message: 'Elegi una especialidad para guardar el punto.' })
+    return res.status(400).json({ message: 'Elegí una especialidad para guardar el punto.' })
   }
 
   if (radiusMeters === null) {
-    return res.status(400).json({ message: 'El radio de cobertura es invalido.' })
+    return res.status(400).json({ message: 'El radio de cobertura es inválido.' })
   }
 
   try {
@@ -299,7 +299,7 @@ jobUbicationsRouter.post('/', async (req, res) => {
 
     if (pointCount >= limits.pinsPerSpecialtyLimit) {
       return res.status(403).json({
-        message: `Llegaste al limite de ${limits.pinsPerSpecialtyLimit} puntos para esta especialidad${limits.isPremium ? '.' : '. Activa Premium para cargar hasta 20.'}`,
+        message: `Llegaste al límite de ${limits.pinsPerSpecialtyLimit} puntos para esta especialidad${limits.isPremium ? '.' : '. Activá Premium para cargar hasta 20.'}`,
       })
     }
 
@@ -315,8 +315,8 @@ jobUbicationsRouter.post('/', async (req, res) => {
 
     return res.status(201).json({ jobUbication: toJobUbication(rows[0]) })
   } catch (error) {
-    console.error('Error creando ubicacion:', error)
-    return res.status(500).json({ message: 'No se pudo guardar la ubicacion.' })
+    console.error('Error creando ubicación:', error)
+    return res.status(500).json({ message: 'No se pudo guardar la ubicación.' })
   }
 })
 
@@ -329,7 +329,7 @@ jobUbicationsRouter.patch('/:id', async (req, res) => {
   const id = Number(req.params.id)
 
   if (!Number.isInteger(id)) {
-    return res.status(400).json({ message: 'Ubicacion invalida.' })
+    return res.status(400).json({ message: 'Ubicación inválida.' })
   }
 
   const updates = []
@@ -342,11 +342,11 @@ jobUbicationsRouter.patch('/:id', async (req, res) => {
     const longitude = Number(body.longitude)
 
     if (!isValidLatitude(latitude)) {
-      return res.status(400).json({ message: 'Latitud invalida.' })
+      return res.status(400).json({ message: 'Latitud inválida.' })
     }
 
     if (!isValidLongitude(longitude)) {
-      return res.status(400).json({ message: 'Longitud invalida.' })
+      return res.status(400).json({ message: 'Longitud inválida.' })
     }
 
     updates.push('latitude = ?', 'longitude = ?')
@@ -357,7 +357,7 @@ jobUbicationsRouter.patch('/:id', async (req, res) => {
     const radiusMeters = parseRadiusMeters(body.radiusMeters, null)
 
     if (radiusMeters === null) {
-      return res.status(400).json({ message: 'El radio de cobertura es invalido.' })
+      return res.status(400).json({ message: 'El radio de cobertura es inválido.' })
     }
 
     updates.push('radius_meters = ?')
@@ -377,7 +377,7 @@ jobUbicationsRouter.patch('/:id', async (req, res) => {
     )
 
     if (!result.affectedRows) {
-      return res.status(404).json({ message: 'La ubicacion no existe.' })
+      return res.status(404).json({ message: 'La ubicación no existe.' })
     }
 
     const [rows] = await db.execute(
@@ -388,8 +388,8 @@ jobUbicationsRouter.patch('/:id', async (req, res) => {
 
     return res.json({ jobUbication: toJobUbication(rows[0]) })
   } catch (error) {
-    console.error('Error actualizando ubicacion:', error)
-    return res.status(500).json({ message: 'No se pudo actualizar la ubicacion.' })
+    console.error('Error actualizando ubicación:', error)
+    return res.status(500).json({ message: 'No se pudo actualizar la ubicación.' })
   }
 })
 
@@ -401,7 +401,7 @@ jobUbicationsRouter.delete('/:id', async (req, res) => {
   const id = Number(req.params.id)
 
   if (!Number.isInteger(id)) {
-    return res.status(400).json({ message: 'Ubicacion invalida.' })
+    return res.status(400).json({ message: 'Ubicación inválida.' })
   }
 
   try {
@@ -409,7 +409,7 @@ jobUbicationsRouter.delete('/:id', async (req, res) => {
 
     return res.status(204).send()
   } catch (error) {
-    console.error('Error eliminando ubicacion:', error)
-    return res.status(500).json({ message: 'No se pudo eliminar la ubicacion.' })
+    console.error('Error eliminando ubicación:', error)
+    return res.status(500).json({ message: 'No se pudo eliminar la ubicación.' })
   }
 })

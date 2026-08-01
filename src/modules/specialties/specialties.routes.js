@@ -28,7 +28,7 @@ const escapeHtml = (value) => String(value ?? '')
 
 const sendSpecialtyRequestNotification = async ({ request, user }) => {
   if (!resendApiKey || !resetEmailFrom || !specialtyRequestNotificationEmail) {
-    console.warn('Notificacion de solicitudes de especialidad desactivada: faltan variables de email.')
+    console.warn('Notificación de solicitudes de especialidad desactivada: faltan variables de email.')
     return false
   }
 
@@ -78,8 +78,8 @@ specialtiesRouter.get('/', async (req, res) => {
 
     return res.json({ specialties: rows.map(toSpecialty) })
   } catch (error) {
-    console.error('Error listando catalogo de especialidades:', error)
-    return res.status(500).json({ message: 'No se pudo cargar el catalogo de especialidades.' })
+    console.error('Error listando catálogo de especialidades:', error)
+    return res.status(500).json({ message: 'No se pudo cargar el catálogo de especialidades.' })
   }
 })
 
@@ -91,7 +91,7 @@ specialtiesRouter.post('/requests', async (req, res) => {
   const userId = await getValidatedAuthenticatedUserId(req)
 
   if (!userId) {
-    return res.status(401).json({ message: 'Inicia sesion para solicitar una especialidad.' })
+    return res.status(401).json({ message: 'Iniciá sesión para solicitar una especialidad.' })
   }
 
   const requestedName = String(req.body.name || '').trim().replace(/\s+/g, ' ')
@@ -109,7 +109,7 @@ specialtiesRouter.post('/requests', async (req, res) => {
 
     if (existingSpecialty) {
       return res.status(409).json({
-        message: `${existingSpecialty.name} ya esta disponible en la lista.`,
+        message: `${existingSpecialty.name} ya está disponible en la lista.`,
         specialty: toSpecialty(existingSpecialty),
       })
     }
@@ -122,7 +122,7 @@ specialtiesRouter.post('/requests', async (req, res) => {
     )
 
     if (pendingRows.length) {
-      return res.status(409).json({ message: 'Esta especialidad ya fue solicitada y esta pendiente de revision.' })
+      return res.status(409).json({ message: 'Esta especialidad ya fue solicitada y está pendiente de revisión.' })
     }
 
     const [recentRows] = await db.execute(
@@ -132,7 +132,7 @@ specialtiesRouter.post('/requests', async (req, res) => {
     )
 
     if (Number(recentRows[0]?.total || 0) >= 5) {
-      return res.status(429).json({ message: 'Alcanzaste el limite de 5 solicitudes por dia.' })
+      return res.status(429).json({ message: 'Alcanzaste el límite de 5 solicitudes por día.' })
     }
 
     const [users] = await db.execute('SELECT name, email FROM users WHERE id = ? LIMIT 1', [userId])
@@ -152,7 +152,7 @@ specialtiesRouter.post('/requests', async (req, res) => {
     try {
       notificationSent = await sendSpecialtyRequestNotification({ request, user: users[0] })
     } catch (notificationError) {
-      console.error('Error enviando notificacion de especialidad:', notificationError)
+      console.error('Error enviando notificación de especialidad:', notificationError)
     }
 
     return res.status(201).json({
