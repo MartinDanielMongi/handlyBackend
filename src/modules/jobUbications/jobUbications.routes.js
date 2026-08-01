@@ -9,7 +9,7 @@ export const jobUbicationsRouter = Router()
 
 const defaultRadiusMeters = 1500
 const minRadiusMeters = 100
-const maxRadiusMeters = 50000
+const maxRadiusMeters = 8000
 const earthRadiusMeters = 6371000
 
 const providerRatingJoinSql = `
