@@ -8,6 +8,7 @@ const minScore = 1
 const maxScore = 10
 const minCommentLength = 5
 const maxCommentLength = 800
+const maxResponseLength = 800
 const monthlyRatingLimit = 2
 const ratingCommentsLimit = 5
 
@@ -67,6 +68,8 @@ const toRatingComment = (row) => ({
   id: row.id,
   score: Number(row.score),
   comment: row.comment_text || '',
+  response: row.response_text || '',
+  responseUpdatedAt: row.response_updated_at || null,
   raterName: row.rater_name || 'Usuario',
   createdAt: row.created_at,
 })
@@ -77,6 +80,8 @@ const loadRatingComments = async (ratedUserId) => {
       jobRatings.id,
       jobRatings.score,
       jobRatings.comment_text,
+      jobRatings.response_text,
+      jobRatings.response_updated_at,
       jobRatings.created_at,
       users.name AS rater_name
     FROM jobRatings
@@ -152,6 +157,8 @@ ratingsRouter.get('/received', async (req, res) => {
         jobRatings.id,
         jobRatings.score,
         jobRatings.comment_text,
+        jobRatings.response_text,
+        jobRatings.response_updated_at,
         jobRatings.created_at,
         users.name AS rater_name
       FROM jobRatings
@@ -168,6 +175,8 @@ ratingsRouter.get('/received', async (req, res) => {
         id: row.id,
         score: Number(row.score),
         comment: row.comment_text || '',
+        response: row.response_text || '',
+        responseUpdatedAt: row.response_updated_at || null,
         authorName: row.rater_name || 'Usuario',
         createdAt: row.created_at,
       })),
@@ -175,6 +184,59 @@ ratingsRouter.get('/received', async (req, res) => {
   } catch (error) {
     console.error('Error cargando reseñas recibidas:', error)
     return res.status(500).json({ message: 'No se pudieron cargar tus reseñas.' })
+  }
+})
+
+ratingsRouter.put('/:ratingId/response', async (req, res) => {
+  if (!ensureDb(res)) {
+    return
+  }
+
+  const ratingId = Number(req.params.ratingId)
+  const response = typeof req.body.response === 'string' ? req.body.response.trim() : ''
+
+  if (!Number.isInteger(ratingId)) {
+    return res.status(400).json({ message: 'Reseña inválida.' })
+  }
+
+  if (!response) {
+    return res.status(400).json({ message: 'Escribí una respuesta.' })
+  }
+
+  if (response.length > maxResponseLength) {
+    return res.status(400).json({ message: 'La respuesta puede tener hasta 800 caracteres.' })
+  }
+
+  try {
+    const [result] = await db.execute(
+      `UPDATE jobRatings
+      SET response_text = ?, response_updated_at = NOW()
+      WHERE id = ? AND rated_user_id = ?`,
+      [response, ratingId, req.userId],
+    )
+
+    if (!result.affectedRows) {
+      return res.status(404).json({ message: 'La reseña no existe.' })
+    }
+
+    const [rows] = await db.execute(
+      `SELECT response_text, response_updated_at
+      FROM jobRatings
+      WHERE id = ? AND rated_user_id = ?
+      LIMIT 1`,
+      [ratingId, req.userId],
+    )
+
+    return res.json({
+      review: {
+        id: ratingId,
+        response: rows[0]?.response_text || '',
+        responseUpdatedAt: rows[0]?.response_updated_at || null,
+      },
+    })
+  } catch (error) {
+    console.error('Error respondiendo reseña:', error)
+    return res.status(500).json({ message: 'No se pudo guardar la respuesta.' })
   }
 })
 

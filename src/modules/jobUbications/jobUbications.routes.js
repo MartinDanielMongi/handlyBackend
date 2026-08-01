@@ -33,6 +33,8 @@ const providerRatingCommentsJoinSql = `
           'id', id,
           'score', score,
           'comment', comment_text,
+          'response', response_text,
+          'responseUpdatedAt', response_updated_at,
           'raterName', rater_name,
           'createdAt', created_at
         )
@@ -43,6 +45,8 @@ const providerRatingCommentsJoinSql = `
         jobRatings.rated_user_id,
         jobRatings.score,
         jobRatings.comment_text,
+        jobRatings.response_text,
+        jobRatings.response_updated_at,
         jobRatings.created_at,
         ratingUsers.name AS rater_name,
         ROW_NUMBER() OVER (

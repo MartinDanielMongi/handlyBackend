@@ -13,6 +13,8 @@ const parseRatingComments = (value) => {
         id: comment.id,
         score: Number(comment.score),
         comment: comment.comment || '',
+        response: comment.response || '',
+        responseUpdatedAt: comment.responseUpdatedAt || null,
         raterName: comment.raterName || 'Usuario',
         createdAt: comment.createdAt || null,
       }))
