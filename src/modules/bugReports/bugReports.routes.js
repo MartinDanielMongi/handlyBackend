@@ -5,6 +5,7 @@ import {
   resetEmailFrom,
 } from '../../config/env.js'
 import { db, ensureDb } from '../../database/connection.js'
+import { requireAuth } from '../../middleware/requireAuth.js'
 import { getValidatedAuthenticatedUserId } from '../auth/session.js'
 
 export const bugReportsRouter = Router()
@@ -117,6 +118,36 @@ Fecha: ${bugReport.created_at}`,
 
   return true
 }
+
+bugReportsRouter.get('/me', requireAuth, async (req, res) => {
+  if (!ensureDb(res)) {
+    return
+  }
+
+  try {
+    const [rows] = await db.execute(
+      `SELECT id, description, status, created_at, updated_at
+      FROM bugReports
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+      LIMIT 50`,
+      [req.userId],
+    )
+
+    return res.json({
+      bugReports: rows.map((row) => ({
+        id: row.id,
+        description: row.description,
+        status: row.status,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      })),
+    })
+  } catch (error) {
+    console.error('Error cargando reportes del usuario:', error)
+    return res.status(500).json({ message: 'No se pudieron cargar tus reportes.' })
+  }
+})
 
 bugReportsRouter.post('/', async (req, res) => {
   if (!ensureDb(res)) {

@@ -141,6 +141,43 @@ ratingsRouter.get('/me', async (req, res) => {
   }
 })
 
+ratingsRouter.get('/received', async (req, res) => {
+  if (!ensureDb(res)) {
+    return
+  }
+
+  try {
+    const [rows] = await db.execute(
+      `SELECT
+        jobRatings.id,
+        jobRatings.score,
+        jobRatings.comment_text,
+        jobRatings.created_at,
+        users.name AS rater_name
+      FROM jobRatings
+      INNER JOIN users
+        ON users.id = jobRatings.rater_user_id
+      WHERE jobRatings.rated_user_id = ?
+      ORDER BY jobRatings.created_at DESC
+      LIMIT 50`,
+      [req.userId],
+    )
+
+    return res.json({
+      reviews: rows.map((row) => ({
+        id: row.id,
+        score: Number(row.score),
+        comment: row.comment_text || '',
+        authorName: row.rater_name || 'Usuario',
+        createdAt: row.created_at,
+      })),
+    })
+  } catch (error) {
+    console.error('Error cargando reseñas recibidas:', error)
+    return res.status(500).json({ message: 'No se pudieron cargar tus reseñas.' })
+  }
+})
+
 ratingsRouter.post('/', async (req, res) => {
   if (!ensureDb(res)) {
     return
