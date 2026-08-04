@@ -368,6 +368,16 @@ jobUbicationsRouter.patch('/:id', async (req, res) => {
     values.push(radiusMeters)
   }
 
+  if (Object.hasOwn(body, 'label')) {
+    if (body.label !== null && typeof body.label !== 'string') {
+      return res.status(400).json({ message: 'El nombre del punto es inválido.' })
+    }
+
+    const label = typeof body.label === 'string' ? body.label.trim().slice(0, 120) : ''
+    updates.push('label = ?')
+    values.push(label || null)
+  }
+
   if (!updates.length) {
     return res.status(400).json({ message: 'No hay cambios para guardar.' })
   }
