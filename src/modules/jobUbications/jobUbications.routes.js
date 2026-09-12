@@ -32,6 +32,7 @@ const providerRatingCommentsJoinSql = `
         JSON_OBJECT(
           'id', id,
           'score', score,
+          'specialtyName', specialty_name,
           'comment', comment_text,
           'response', response_text,
           'responseUpdatedAt', response_updated_at,
@@ -44,6 +45,7 @@ const providerRatingCommentsJoinSql = `
         jobRatings.id,
         jobRatings.rated_user_id,
         jobRatings.score,
+        jobRatings.specialty_name,
         jobRatings.comment_text,
         jobRatings.response_text,
         jobRatings.response_updated_at,

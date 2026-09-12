@@ -67,6 +67,7 @@ const loadRatingStatus = async (userId) => {
 const toRatingComment = (row) => ({
   id: row.id,
   score: Number(row.score),
+  specialtyName: row.specialty_name || '',
   comment: row.comment_text || '',
   response: row.response_text || '',
   responseUpdatedAt: row.response_updated_at || null,
@@ -79,6 +80,7 @@ const loadRatingComments = async (ratedUserId) => {
     `SELECT
       jobRatings.id,
       jobRatings.score,
+      jobRatings.specialty_name,
       jobRatings.comment_text,
       jobRatings.response_text,
       jobRatings.response_updated_at,
@@ -103,10 +105,11 @@ const loadRatingSummary = async (ratedUserId, raterUserId) => {
       ROUND(AVG(score), 1) AS provider_rating_average,
       COUNT(*) AS provider_rating_count,
       MAX(CASE WHEN rater_user_id = ? THEN score END) AS my_rating_score,
-      MAX(CASE WHEN rater_user_id = ? THEN comment_text END) AS my_rating_comment
+      MAX(CASE WHEN rater_user_id = ? THEN comment_text END) AS my_rating_comment,
+      MAX(CASE WHEN rater_user_id = ? THEN specialty_name END) AS my_rating_specialty_name
     FROM jobRatings
     WHERE rated_user_id = ?`,
-    [raterUserId, raterUserId, ratedUserId],
+    [raterUserId, raterUserId, raterUserId, ratedUserId],
   )
   const summary = ratings[0] || {}
   const comments = await loadRatingComments(ratedUserId)
@@ -120,6 +123,7 @@ const loadRatingSummary = async (ratedUserId, raterUserId) => {
       ? null
       : Number(summary.my_rating_score),
     myComment: summary.my_rating_comment || '',
+    mySpecialtyName: summary.my_rating_specialty_name || '',
     comments,
     ratedUserId,
   }
@@ -174,6 +178,7 @@ ratingsRouter.get('/received', async (req, res) => {
       reviews: rows.map((row) => ({
         id: row.id,
         score: Number(row.score),
+        specialtyName: row.specialty_name || '',
         comment: row.comment_text || '',
         response: row.response_text || '',
         responseUpdatedAt: row.response_updated_at || null,
@@ -247,6 +252,7 @@ ratingsRouter.post('/', async (req, res) => {
 
   const ratedUserId = Number(req.body.ratedUserId)
   const score = Number(req.body.score)
+  const specialtyName = typeof req.body.specialtyName === 'string' ? req.body.specialtyName.trim() : ''
   const comment = typeof req.body.comment === 'string' ? req.body.comment.trim() : ''
 
   if (!Number.isInteger(ratedUserId)) {
@@ -263,6 +269,10 @@ ratingsRouter.post('/', async (req, res) => {
 
   if (comment.length < minCommentLength) {
     return res.status(400).json({ message: 'Agregá un comentario de al menos 5 caracteres.' })
+  }
+
+  if (!specialtyName || specialtyName.length > 100) {
+    return res.status(400).json({ message: 'Indicá qué tipo de trabajo realizó.' })
   }
 
   if (comment.length > maxCommentLength) {
@@ -304,14 +314,14 @@ ratingsRouter.post('/', async (req, res) => {
 
     if (existingRating) {
       await db.execute(
-        'UPDATE jobRatings SET score = ?, comment_text = ? WHERE id = ?',
-        [score, comment, existingRating.id],
+        'UPDATE jobRatings SET score = ?, specialty_name = ?, comment_text = ? WHERE id = ?',
+        [score, specialtyName, comment, existingRating.id],
       )
     } else {
       await db.execute(
-        `INSERT INTO jobRatings (rater_user_id, rated_user_id, score, comment_text)
-        VALUES (?, ?, ?, ?)`,
-        [req.userId, ratedUserId, score, comment],
+        `INSERT INTO jobRatings (rater_user_id, rated_user_id, score, specialty_name, comment_text)
+        VALUES (?, ?, ?, ?, ?)`,
+        [req.userId, ratedUserId, score, specialtyName, comment],
       )
     }
 

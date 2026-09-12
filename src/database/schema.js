@@ -313,6 +313,7 @@ export const ensureDatabase = async () => {
       rater_user_id INT NOT NULL,
       rated_user_id INT NOT NULL,
       score TINYINT UNSIGNED NOT NULL,
+      specialty_name VARCHAR(100) NOT NULL DEFAULT '',
       comment_text VARCHAR(800) NOT NULL DEFAULT '',
       response_text VARCHAR(800) NULL,
       response_updated_at TIMESTAMP NULL,
@@ -330,6 +331,10 @@ export const ensureDatabase = async () => {
 
   if (!(await columnExists('jobRatings', 'comment_text'))) {
     await db.execute("ALTER TABLE jobRatings ADD COLUMN comment_text VARCHAR(800) NOT NULL DEFAULT '' AFTER score")
+  }
+
+  if (!(await columnExists('jobRatings', 'specialty_name'))) {
+    await db.execute("ALTER TABLE jobRatings ADD COLUMN specialty_name VARCHAR(100) NOT NULL DEFAULT '' AFTER score")
   }
 
   if (!(await columnExists('jobRatings', 'response_text'))) {
