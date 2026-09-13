@@ -15,10 +15,22 @@ const parseRatingComments = (value) => {
         comment: comment.comment || '',
         response: comment.response || '',
         responseUpdatedAt: comment.responseUpdatedAt || null,
+        specialtyName: comment.specialtyName || '',
         raterName: comment.raterName || 'Usuario',
         createdAt: comment.createdAt || null,
       }))
       .filter((comment) => comment.comment)
+  } catch {
+    return []
+  }
+}
+
+const parseSpecialties = (value) => {
+  if (!value) return []
+  try {
+    const serialized = Buffer.isBuffer(value) ? value.toString('utf8') : value
+    const parsed = typeof serialized === 'string' ? JSON.parse(serialized) : serialized
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : []
   } catch {
     return []
   }
@@ -30,6 +42,7 @@ export const toJobUbication = (row) => ({
   specialtyId: row.specialty_id,
   catalogSpecialtyId: row.catalog_specialty_id || null,
   specialtyName: row.specialty_name || null,
+  providerSpecialties: parseSpecialties(row.provider_specialties),
   providerName: row.provider_name || null,
   providerAvatarUrl: row.provider_avatar_url || null,
   providerContactPhone: row.provider_contact_phone || '',
@@ -42,6 +55,11 @@ export const toJobUbication = (row) => ({
     : Number(row.provider_rating_average),
   providerRatingCount: Number(row.provider_rating_count || 0),
   providerRatingComments: parseRatingComments(row.provider_rating_comments),
+  myRatingScore: row.my_rating_score === null || row.my_rating_score === undefined
+    ? null
+    : Number(row.my_rating_score),
+  myRatingComment: row.my_rating_comment || '',
+  myRatingSpecialtyName: row.my_rating_specialty_name || '',
   canViewPrivateProfile: row.can_view_private_profile === undefined
     ? true
     : Boolean(Number(row.can_view_private_profile)),

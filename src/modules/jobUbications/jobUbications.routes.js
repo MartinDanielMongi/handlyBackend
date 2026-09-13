@@ -148,6 +148,10 @@ jobUbicationsRouter.get('/search', async (req, res) => {
               providerRatings.provider_rating_average,
               providerRatings.provider_rating_count,
               providerRatingComments.provider_rating_comments,
+              (SELECT score FROM jobRatings WHERE rater_user_id = ${viewerUserId || 0} AND rated_user_id = users.id LIMIT 1) AS my_rating_score,
+              (SELECT comment_text FROM jobRatings WHERE rater_user_id = ${viewerUserId || 0} AND rated_user_id = users.id LIMIT 1) AS my_rating_comment,
+              (SELECT specialty_name FROM jobRatings WHERE rater_user_id = ${viewerUserId || 0} AND rated_user_id = users.id LIMIT 1) AS my_rating_specialty_name,
+              (SELECT JSON_ARRAYAGG(jobSpecialties.name) FROM jobSpecialties WHERE jobSpecialties.user_id = users.id) AS provider_specialties,
               1 AS can_view_private_profile,
     `
     : `
