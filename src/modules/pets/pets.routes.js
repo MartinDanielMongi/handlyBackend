@@ -12,6 +12,7 @@ const earthRadiusMeters = 6371000
 const validStatuses = new Set(['lost', 'found'])
 const validTypes = new Set(['dog', 'cat', 'other'])
 const validCollars = new Set(['yes', 'no', 'unknown'])
+const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/
 const imageDataUrlPattern = /^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=]+$/i
 
 const cleanText = (value, maxLength) => (
@@ -130,6 +131,11 @@ petsRouter.get('/search', async (req, res) => {
   const breed = cleanText(req.query.breed, 100)
   const collar = cleanText(req.query.collar, 20)
   const name = cleanText(req.query.name, 100)
+  const lostDate = cleanText(req.query.lostDate, 10)
+
+  if (lostDate && !isoDatePattern.test(lostDate)) {
+    return res.status(400).json({ message: 'La fecha de pérdida es inválida.' })
+  }
 
   if (validStatuses.has(status)) { where.push('pets.status = ?'); values.push(status) }
   if (validTypes.has(type)) { where.push('pets.type = ?'); values.push(type) }
@@ -137,6 +143,10 @@ petsRouter.get('/search', async (req, res) => {
   if (breed) { where.push('pets.breed LIKE ?'); values.push(`%${breed}%`) }
   if (validCollars.has(collar)) { where.push('pets.collar = ?'); values.push(collar) }
   if (name) { where.push('pets.name LIKE ?'); values.push(`%${name}%`) }
+  if (status === 'found' && lostDate) {
+    where.push('DATE(pets.created_at) >= ?')
+    values.push(lostDate)
+  }
   where.push('pets.latitude IS NOT NULL AND pets.longitude IS NOT NULL')
 
   try {
