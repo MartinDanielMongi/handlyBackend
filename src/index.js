@@ -9,6 +9,7 @@ import { healthRouter } from './modules/health/health.routes.js'
 import { jobSpecialtiesRouter } from './modules/jobSpecialties/jobSpecialties.routes.js'
 import { jobUbicationsRouter } from './modules/jobUbications/jobUbications.routes.js'
 import { premiumRouter } from './modules/premium/premium.routes.js'
+import { petsRouter } from './modules/pets/pets.routes.js'
 import { ratingsRouter } from './modules/ratings/ratings.routes.js'
 import { specialtiesRouter } from './modules/specialties/specialties.routes.js'
 
@@ -36,6 +37,7 @@ app.use('/api/specialties', specialtiesRouter)
 app.use('/api/jobSpecialties', jobSpecialtiesRouter)
 app.use('/api/jobUbications', jobUbicationsRouter)
 app.use('/api/premium', premiumRouter)
+app.use('/api/pets', petsRouter)
 app.use('/api/ratings', ratingsRouter)
 
 ensureDatabase().then(() => {

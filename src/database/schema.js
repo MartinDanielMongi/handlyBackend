@@ -464,4 +464,33 @@ export const ensureDatabase = async () => {
       ON DELETE CASCADE
     `)
   }
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS pets (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      status VARCHAR(20) NOT NULL,
+      type VARCHAR(30) NOT NULL,
+      name VARCHAR(100) NULL,
+      breed VARCHAR(100) NULL,
+      color VARCHAR(100) NULL,
+      collar VARCHAR(20) NULL,
+      description TEXT NULL,
+      photo_url LONGTEXT NULL,
+      latitude DECIMAL(10, 7) NULL,
+      longitude DECIMAL(10, 7) NULL,
+      radius_meters INT NOT NULL DEFAULT 1500,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX pets_user_id_idx (user_id),
+      INDEX pets_status_idx (status),
+      INDEX pets_type_idx (type),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE
+    )
+  `)
+
+  if (!(await columnExists('pets', 'photo_url'))) {
+    await db.execute('ALTER TABLE pets ADD COLUMN photo_url LONGTEXT NULL AFTER description')
+  }
 }

@@ -24,6 +24,7 @@ model users {
   passwordResetTokens passwordResetTokens[]
   emailVerificationTokens emailVerificationTokens[]
   specialtyRequests specialtyRequests[]
+  pets           pets[]
 }
 
 model emailVerificationTokens {
@@ -111,4 +112,27 @@ model jobUbications {
 
   @@index([user_id], map: "jobUbications_user_id_idx")
   @@index([specialty_id], map: "jobUbications_specialty_id_idx")
+}
+
+model pets {
+  id             Int       @id @default(autoincrement())
+  user_id        Int
+  status         String    @db.VarChar(20)
+  type           String    @db.VarChar(30)
+  name           String?   @db.VarChar(100)
+  breed          String?   @db.VarChar(100)
+  color          String?   @db.VarChar(100)
+  collar         String?   @db.VarChar(20)
+  description    String?   @db.Text
+  photo_url      String?   @db.LongText
+  latitude       Decimal?  @db.Decimal(10, 7)
+  longitude      Decimal?  @db.Decimal(10, 7)
+  radius_meters  Int       @default(1500)
+  created_at     DateTime? @default(now()) @db.Timestamp(0)
+  updated_at     DateTime? @default(now()) @db.Timestamp(0)
+  user           users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id], map: "pets_user_id_idx")
+  @@index([status], map: "pets_status_idx")
+  @@index([type], map: "pets_type_idx")
 }
