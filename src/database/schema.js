@@ -473,7 +473,6 @@ export const ensureDatabase = async () => {
       type VARCHAR(30) NOT NULL,
       name VARCHAR(100) NULL,
       breed VARCHAR(100) NULL,
-      color VARCHAR(100) NULL,
       collar VARCHAR(20) NULL,
       description TEXT NULL,
       photo_url LONGTEXT NULL,
@@ -492,5 +491,9 @@ export const ensureDatabase = async () => {
 
   if (!(await columnExists('pets', 'photo_url'))) {
     await db.execute('ALTER TABLE pets ADD COLUMN photo_url LONGTEXT NULL AFTER description')
+  }
+
+  if (await columnExists('pets', 'color')) {
+    await db.execute('ALTER TABLE pets DROP COLUMN color')
   }
 }

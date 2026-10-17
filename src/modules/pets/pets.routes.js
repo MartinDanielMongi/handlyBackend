@@ -104,7 +104,6 @@ const validatePetBody = (body, partial = false) => {
     type,
     name: body.name === undefined && partial ? null : cleanText(body.name, 100),
     breed: body.breed === undefined && partial ? null : cleanText(body.breed, 100),
-    color: body.color === undefined && partial ? null : cleanText(body.color, 100),
     collar,
     description: body.description === undefined && partial ? null : cleanText(body.description, 4000),
     photoUrl,
@@ -127,7 +126,6 @@ petsRouter.get('/search', async (req, res) => {
   const values = []
   const status = cleanText(req.query.status, 20)
   const type = cleanText(req.query.type, 30)
-  const color = cleanText(req.query.color, 100)
   const breed = cleanText(req.query.breed, 100)
   const collar = cleanText(req.query.collar, 20)
   const name = cleanText(req.query.name, 100)
@@ -139,7 +137,6 @@ petsRouter.get('/search', async (req, res) => {
 
   if (validStatuses.has(status)) { where.push('pets.status = ?'); values.push(status) }
   if (validTypes.has(type)) { where.push('pets.type = ?'); values.push(type) }
-  if (color) { where.push('pets.color LIKE ?'); values.push(`%${color}%`) }
   if (breed) { where.push('pets.breed LIKE ?'); values.push(`%${breed}%`) }
   if (validCollars.has(collar)) { where.push('pets.collar = ?'); values.push(collar) }
   if (name) { where.push('pets.name LIKE ?'); values.push(`%${name}%`) }
@@ -189,9 +186,9 @@ petsRouter.post('/', async (req, res) => {
   try {
     const [result] = await db.execute(
       `INSERT INTO pets
-        (user_id, status, type, name, breed, color, collar, description, photo_url, latitude, longitude, radius_meters)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.userId, values.status, values.type, values.name || null, values.breed || null, values.color || null,
+        (user_id, status, type, name, breed, collar, description, photo_url, latitude, longitude, radius_meters)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.userId, values.status, values.type, values.name || null, values.breed || null,
         values.collar, values.description || null, values.photoUrl, values.latitude, values.longitude, values.radiusMeters],
     )
     const [rows] = await db.execute(`${selectPetSql} WHERE pets.id = ? AND pets.user_id = ?`, [result.insertId, req.userId])
@@ -216,7 +213,6 @@ petsRouter.patch('/:id', async (req, res) => {
     type: values.type,
     name: values.name,
     breed: values.breed,
-    color: values.color,
     collar: values.collar,
     description: values.description,
     photo_url: values.photoUrl,

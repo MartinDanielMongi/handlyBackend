@@ -5,7 +5,6 @@ export const toPet = (row) => ({
   type: row.type,
   name: row.name || '',
   breed: row.breed || '',
-  color: row.color || '',
   collar: row.collar || '',
   description: row.description || '',
   photoUrl: row.photo_url || '',
